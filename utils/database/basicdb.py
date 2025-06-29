@@ -130,9 +130,11 @@ class BasicDB:
 
         doc_index = documents.index(doc)
 
+        update["_id"] = _id
+
         documents[doc_index] = update
 
-        self._write_all_documents
+        self._write_all_documents(documents)
 
         return update
 

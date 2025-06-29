@@ -3,18 +3,19 @@ import os
 from PySide6.QtWidgets import (
 	QApplication,
 	QMainWindow,
+	QDialog,
+	QMessageBox,
 	QWidget,
 	QVBoxLayout,
 	QHBoxLayout,
 	QLabel,
 	QLineEdit,
+	QTextEdit,
 	QPushButton,
+	QCheckBox,
 	QTableView,
-	QHeaderView,
 	QAbstractItemView,
-	QDialog,
-	QMessageBox,
-	QCheckBox
+	QHeaderView
 )
 from PySide6.QtCore import (
 	Qt,
@@ -73,16 +74,34 @@ class Holocron(QMainWindow):
 		# ////////////////////////
 		# Signals
 		self.button_add.clicked.connect(self.add_book)
+		self.button_edit.clicked.connect(self.edit_book)
+
+		self.table_view.pressed.connect(lambda: self.button_edit.setDisabled(False))
+		self.table_view.pressed.connect(lambda: self.button_delete.setDisabled(False))
 
 		
 		
 	def add_book(self):
 		self.show_dialog()
+
+	def edit_book(self):
+
+		indexes = self.table_view.selectedIndexes()
+
+		if indexes:
+			row = indexes[0].row()
+
+			selected_book = self.books[row]
+
+			self.show_dialog(existing_book=selected_book)
+
+
+		# self.show_dialog
 		
 
 
 	def show_dialog(self, existing_book:list=None):
-		
+
 		self.stay_open = False
 
 		dialog = QDialog(self)
@@ -110,6 +129,8 @@ class Holocron(QMainWindow):
 		layout_add_title.addWidget(label_add_title)
 		
 		lineedit_add_title = QLineEdit()
+		if existing_book:
+			lineedit_add_title.setText(existing_book["title"])
 		lineedit_add_title.setPlaceholderText("e.g. 1984")
 		lineedit_add_title.setStyleSheet("padding: 2px 0; font-size: 12px;")
 		layout_add_title.addWidget(lineedit_add_title)
@@ -121,6 +142,8 @@ class Holocron(QMainWindow):
 		layout_add_authors.addWidget(label_add_authors)
 
 		lineedit_add_authors = QLineEdit()
+		if existing_book:
+			lineedit_add_authors.setText(existing_book["authors"])
 		lineedit_add_authors.setPlaceholderText("e.g. George Orwell")
 		lineedit_add_authors.setStyleSheet("padding: 2px 0; font-size: 12px;")
 		layout_add_authors.addWidget(lineedit_add_authors)
@@ -132,6 +155,8 @@ class Holocron(QMainWindow):
 		layout_add_publisher.addWidget(label_add_publisher)
 
 		lineedit_add_publisher = QLineEdit()
+		if existing_book:
+			lineedit_add_publisher.setText(existing_book["publisher"])
 		lineedit_add_publisher.setPlaceholderText("e.g. Secker & Warburg")
 		lineedit_add_publisher.setStyleSheet("padding: 2px 0; font-size: 12px;")
 		layout_add_publisher.addWidget(lineedit_add_publisher)
@@ -143,6 +168,8 @@ class Holocron(QMainWindow):
 		layout_add_publication_year.addWidget(label_add_publication_year)
 
 		lineedit_add_publication_year = QLineEdit()
+		if existing_book:
+			lineedit_add_publication_year.setText(existing_book["publicationYear"])
 		lineedit_add_publication_year.setPlaceholderText("e.g. 1949")
 		lineedit_add_publication_year.setStyleSheet("padding: 2px 0; font-size: 12px;")
 		layout_add_publication_year.addWidget(lineedit_add_publication_year)
@@ -154,6 +181,8 @@ class Holocron(QMainWindow):
 		layout_add_isbn10.addWidget(label_add_isbn10)
 
 		lineedit_add_isbn10 = QLineEdit()
+		if existing_book:
+			lineedit_add_isbn10.setText(existing_book["isbn10"])
 		lineedit_add_isbn10.setPlaceholderText("e.g. 6052090493")
 		lineedit_add_isbn10.setStyleSheet("padding: 2px 0; font-size: 12px;")
 		layout_add_isbn10.addWidget(lineedit_add_isbn10)
@@ -165,6 +194,8 @@ class Holocron(QMainWindow):
 		layout_add_isbn13.addWidget(label_add_isbn13)
 
 		lineedit_add_isbn13 = QLineEdit()
+		if existing_book:
+			lineedit_add_isbn13.setText(existing_book["isbn13"])
 		lineedit_add_isbn13.setPlaceholderText("e.g. 978-0451524935")
 		lineedit_add_isbn13.setStyleSheet("padding: 2px 0; font-size: 12px;")
 		layout_add_isbn13.addWidget(lineedit_add_isbn13)
@@ -176,6 +207,8 @@ class Holocron(QMainWindow):
 		layout_add_page_count.addWidget(label_add_page_count)
 
 		lineedit_add_page_count = QLineEdit()
+		if existing_book:
+			lineedit_add_page_count.setText(existing_book["pageCount"])
 		lineedit_add_page_count.setPlaceholderText("e.g. 328")
 		lineedit_add_page_count.setStyleSheet("padding: 2px 0; font-size: 12px;")
 		layout_add_page_count.addWidget(lineedit_add_page_count)
@@ -187,6 +220,8 @@ class Holocron(QMainWindow):
 		layout_add_language.addWidget(label_add_language)
 
 		lineedit_add_language = QLineEdit()
+		if existing_book:
+			lineedit_add_language.setText(existing_book["language"])
 		lineedit_add_language.setPlaceholderText("e.g. English")
 		lineedit_add_language.setStyleSheet("padding: 2px 0; font-size: 12px;")
 		layout_add_language.addWidget(lineedit_add_language)
@@ -198,9 +233,26 @@ class Holocron(QMainWindow):
 		layout_add_genres.addWidget(label_add_genres)
 
 		lineedit_add_genres = QLineEdit()
+		if existing_book:
+			lineedit_add_genres.setText(existing_book["genres"])
 		lineedit_add_genres.setPlaceholderText("e.g. Dystopian, Political Fiction, Science Fiction")
 		lineedit_add_genres.setStyleSheet("padding: 2px 0; font-size: 12px;")
 		layout_add_genres.addWidget(lineedit_add_genres)
+		## Add Form: Description
+		layout_add_description = QHBoxLayout()
+		label_add_description = QLabel("Description")
+		label_add_description.setStyleSheet("font-size: 12px;")
+		label_add_description.setFixedWidth(90)
+		label_add_description.setAlignment(Qt.AlignmentFlag.AlignTop)
+		layout_add_description.addWidget(label_add_description)
+
+		textedit_add_description = QTextEdit()
+		if existing_book:
+			textedit_add_description.setPlainText(existing_book["description"])
+		textedit_add_description.setPlaceholderText("e.g. Dystopian, Political Fiction, Science Fiction")
+		textedit_add_description.setStyleSheet("padding: 2px 0; font-size: 12px;")
+		textedit_add_description.setFixedHeight(100)
+		layout_add_description.addWidget(textedit_add_description)
 
 		
 
@@ -218,6 +270,7 @@ class Holocron(QMainWindow):
 		layout_add_form.addLayout(layout_add_page_count)
 		layout_add_form.addLayout(layout_add_language)
 		layout_add_form.addLayout(layout_add_genres)
+		layout_add_form.addLayout(layout_add_description)
 		
 
 		## Form Buttons
@@ -225,7 +278,7 @@ class Holocron(QMainWindow):
 		layout_add_form_buttons_container.setSpacing(10)
 		layout.addLayout(layout_add_form_buttons_container)
 
-		button_form_save_book = QPushButton("Save Book")
+		button_form_save_book = QPushButton("Save Changes") if existing_book else QPushButton("Save Book")
 		button_form_save_book.setStyleSheet("padding: 5px 0;")
 		button_form_save_book.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 		layout_add_form_buttons_container.addWidget(button_form_save_book)
@@ -244,19 +297,20 @@ class Holocron(QMainWindow):
 
 		def save_book():
 			
-			title = lineedit_add_title.text()
-			authors = lineedit_add_authors.text()
-			publisher = lineedit_add_publisher.text()
-			publication_year = lineedit_add_publication_year.text()
-			isbn10 = lineedit_add_isbn10.text()
-			isbn13 = lineedit_add_isbn13.text()
-			page_count = lineedit_add_page_count.text()
-			language = lineedit_add_language.text()
-			genres = lineedit_add_genres.text()
+			title = lineedit_add_title.text().strip()
+			authors = lineedit_add_authors.text().strip()
+			publisher = lineedit_add_publisher.text().strip()
+			publication_year = lineedit_add_publication_year.text().strip()
+			isbn10 = lineedit_add_isbn10.text().strip()
+			isbn13 = lineedit_add_isbn13.text().strip()
+			page_count = lineedit_add_page_count.text().strip()
+			language = lineedit_add_language.text().strip()
+			genres = lineedit_add_genres.text().strip()
+			description = textedit_add_description.toPlainText().strip()
 
 			if all([title, authors, isbn13]):
-			
-				new_book = self.db.create({
+
+				book_data ={
 					"title": title,
 					"authors": authors,
 					"publisher": publisher,
@@ -265,11 +319,27 @@ class Holocron(QMainWindow):
 					"isbn13": isbn13,
 					"pageCount": page_count,
 					"language": language,
-					"genres": genres
-				})
+					"genres": genres,
+					"description": description
+				}
 
-				if new_book:
-					self._update_model()
+				if existing_book:
+
+					updated_book = self.db.find_by_id_and_update(existing_book["_id"], book_data)
+					
+					if updated_book:
+						self._update_model()
+
+						dialog.close()
+
+
+				else:
+					new_book = self.db.create(book_data)
+
+					if new_book:
+						self._update_model()
+						
+						dialog.close()
 
 			else:
 				QMessageBox.warning(
@@ -320,8 +390,9 @@ class Holocron(QMainWindow):
 
 		result = []
 		for doc in documents:
-			result.append([value for key, value in doc.items() if key in ["title", "authors", "publisher", "isbn13"]])
-			
+			# result.append([value for key, value in doc.items() if key in ["title", "authors", "publisher", "isbn13"]])
+			result.append([doc["title"], doc["authors"], doc["publisher"], doc["isbn13"]])
+
 		return result
 	
 	
@@ -335,6 +406,7 @@ class Holocron(QMainWindow):
 		self.model.books = self.books_list
 
 		self.model.layoutChanged.emit()
+	
 		
 
 	def setup_ui(self):
