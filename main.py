@@ -131,7 +131,7 @@ class Holocron(QMainWindow):
 
 	def show_dialog(self, existing_book:list=None):
 
-		self.stay_open = False
+		self.keep_dialog_open_state = False
 
 		dialog = QDialog(self)
 
@@ -302,6 +302,18 @@ class Holocron(QMainWindow):
 		layout_add_form.addLayout(layout_add_description)
 		
 
+		## Keep window open?
+		layout_keep_dialog_open = QHBoxLayout()
+		layout_keep_dialog_open.addStretch()
+		if not existing_book:
+			layout_add_form.addLayout(layout_keep_dialog_open)
+		label_keep_dialog_open = QLabel("Keep window open?")
+		layout_keep_dialog_open.addWidget(label_keep_dialog_open)
+		checkbox_keep_dialog_open = QCheckBox("No")
+		checkbox_keep_dialog_open.setChecked(self.keep_dialog_open_state)
+		layout_keep_dialog_open.addWidget(checkbox_keep_dialog_open)
+
+
 		## Form Buttons
 		layout_add_form_buttons_container = QHBoxLayout()
 		layout_add_form_buttons_container.setSpacing(10)
@@ -367,8 +379,20 @@ class Holocron(QMainWindow):
 
 					if new_book:
 						self._update_model()
-						
-						dialog.close()
+
+						if not self.keep_dialog_open_state:
+							dialog.close()
+
+				title = lineedit_add_title.clear()
+				authors = lineedit_add_authors.clear()
+				publisher = lineedit_add_publisher.clear()
+				publication_year = lineedit_add_publication_year.clear()
+				isbn10 = lineedit_add_isbn10.clear()
+				isbn13 = lineedit_add_isbn13.clear()
+				page_count = lineedit_add_page_count.clear()
+				language = lineedit_add_language.clear()
+				genres = lineedit_add_genres.clear()
+				description = textedit_add_description.clear()
 
 			else:
 				QMessageBox.warning(
@@ -379,13 +403,21 @@ class Holocron(QMainWindow):
 					QMessageBox.Ok
 				)
 
+		def update_keep_dialog_open_state(check_state):
 
+			if check_state == 2: # Qt.CheckState.Checked
+				self.keep_dialog_open_state = True
+
+			elif check_state == 0:
+				self.keep_dialog_open_state = False
 		
 
 		#/////////////////////////////////////////////////////////
 		## Signals
 		button_form_save_book.clicked.connect(save_book)
 		button_form_cancel.clicked.connect(dialog.close)
+
+		checkbox_keep_dialog_open.stateChanged.connect(update_keep_dialog_open_state)
 		#/////////////////////////////////////////////////////////
 
 

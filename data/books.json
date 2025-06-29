@@ -1,1 +1,54 @@
-[]
+[
+  {
+    "title": "sfsafdsafd",
+    "authors": "sfdsafsafd",
+    "publisher": "",
+    "publicationYear": "",
+    "isbn10": "",
+    "isbn13": "sdfsafsaf",
+    "pageCount": "",
+    "language": "",
+    "genres": "",
+    "description": "",
+    "_id": "30b2a7d7d9964c8a8f5a64d113437cbe"
+  },
+  {
+    "title": "asdfsaf",
+    "authors": "dsadf",
+    "publisher": "safdsad",
+    "publicationYear": "fsadfsadf",
+    "isbn10": "sadf",
+    "isbn13": "sadf",
+    "pageCount": "sadfsa",
+    "language": "dfsadf",
+    "genres": "aSD",
+    "description": "asdaD",
+    "_id": "f1570bda2f7145c09493422a9df2d061"
+  },
+  {
+    "title": "a",
+    "authors": "daDAd",
+    "publisher": "fsaf",
+    "publicationYear": "sfdsd",
+    "isbn10": "saf",
+    "isbn13": "saf",
+    "pageCount": "sadf",
+    "language": "sdfas",
+    "genres": "dfsadf",
+    "description": "sadfsadf",
+    "_id": "e5c6fce9bf684e52a62605a8a8c8f720"
+  },
+  {
+    "title": "sadfsafd",
+    "authors": "sdf",
+    "publisher": "safd",
+    "publicationYear": "safsadf",
+    "isbn10": "sadf",
+    "isbn13": "sfasfsadf",
+    "pageCount": "",
+    "language": "",
+    "genres": "",
+    "description": "",
+    "_id": "5a094d5719bb4b289796a966f5dc98c5"
+  }
+]
