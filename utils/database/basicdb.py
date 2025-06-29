@@ -33,7 +33,7 @@ class BasicDB:
     def _write_all_documents(self, documents: list):
         try:
             with open(self.file_path, mode="w", encoding="utf-8") as file:
-                json.dump(documents, file, ensure_ascii=True, indent=2)
+                json.dump(documents, file, ensure_ascii=False, indent=2)
         
         except IOError as err:
             print(f"[ERROR] - {self.collection_name}.json dosyasına yazma hatası: {err}")
@@ -151,5 +151,4 @@ class BasicDB:
 
         documents.pop(doc_index)
 
-        self._write_all_documents
-
+        self._write_all_documents(documents)

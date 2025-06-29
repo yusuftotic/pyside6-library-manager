@@ -54,7 +54,7 @@ class BookModel(QAbstractTableModel):
 				return self.headers[section]
 			
 			elif orientation == Qt.Orientation.Vertical:
-				return str(section)
+				return str(section+1)
 
 class Holocron(QMainWindow):
 	
@@ -75,6 +75,7 @@ class Holocron(QMainWindow):
 		# Signals
 		self.button_add.clicked.connect(self.add_book)
 		self.button_edit.clicked.connect(self.edit_book)
+		self.button_delete.clicked.connect(self.delete_book)
 
 		self.table_view.pressed.connect(lambda: self.button_edit.setDisabled(False))
 		self.table_view.pressed.connect(lambda: self.button_delete.setDisabled(False))
@@ -96,8 +97,36 @@ class Holocron(QMainWindow):
 			self.show_dialog(existing_book=selected_book)
 
 
-		# self.show_dialog
+
+	def delete_book(self):
 		
+		indexes = self.table_view.selectedIndexes()
+
+		if indexes:
+
+			row = indexes[0].row()
+
+			selected_book = self.books_list[row]
+			
+
+			reply = QMessageBox.question(
+				self,
+				"Holocron - Delete Book",
+				f"Are you sure you want to delete {selected_book[0]}?",
+				QMessageBox.Yes | QMessageBox.No,
+				QMessageBox.No
+			)
+
+			if reply:
+				_id = selected_book[-1]
+
+				self.db.find_by_id_and_delete(_id)
+
+				# print(f"[INFO] - '{selected_book[0]}' was deleted.")
+				self._update_model()
+
+					
+
 
 
 	def show_dialog(self, existing_book:list=None):
@@ -391,7 +420,7 @@ class Holocron(QMainWindow):
 		result = []
 		for doc in documents:
 			# result.append([value for key, value in doc.items() if key in ["title", "authors", "publisher", "isbn13"]])
-			result.append([doc["title"], doc["authors"], doc["publisher"], doc["isbn13"]])
+			result.append([doc["title"], doc["authors"], doc["publisher"], doc["isbn13"], doc["_id"]])
 
 		return result
 	
