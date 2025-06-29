@@ -33,7 +33,7 @@ class BasicDB:
     def _write_all_documents(self, documents: list):
         try:
             with open(self.file_path, mode="w", encoding="utf-8") as file:
-                json.dump(documents, file, ensure_ascii=True)
+                json.dump(documents, file, ensure_ascii=True, indent=2)
         
         except IOError as err:
             print(f"[ERROR] - {self.collection_name}.json dosyasına yazma hatası: {err}")
@@ -58,7 +58,7 @@ class BasicDB:
         documents = self._read_all_documents()
 
         new_doc = copy.deepcopy(doc)
-        doc["_id"] = _id
+        new_doc["_id"] = _id
 
         documents.append(new_doc)
 

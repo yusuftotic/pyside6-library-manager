@@ -1,57 +1,14 @@
 [
   {
-    "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-    "title": "1984",
-    "authors": ["George Orwell"],
-    "publisher": "Secker & Warburg",
-    "publicationYear": 1949,
-    "isbn": "978-0451524935",
-    "pageCount": 328,
-    "language": "English",
-    "genreCategory": ["Dystopian", "Political Fiction", "Science Fiction"]
-  },
-  {
-    "id": "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
-    "title": "Sineklerin Tanrısı",
-    "authors": ["William Golding"],
-    "publisher": "Faber and Faber",
-    "publicationYear": 1954,
-    "isbn": "978-0571056866",
-    "pageCount": 224,
-    "language": "English",
-    "genreCategory": ["Allegory", "Philosophical Fiction", "Novel"]
-  },
-  {
-    "id": "c3d4e5f6-a7b8-9012-3456-7890abcdef01",
-    "title": "Don Kişot",
-    "authors": ["Miguel de Cervantes"],
-    "publisher": "Francisco de Robles",
-    "publicationYear": 1605,
-    "isbn": "978-0142437230",
-    "pageCount": 1072,
-    "language": "Spanish",
-    "genreCategory": ["Adventure", "Satire", "Epic"]
-  },
-  {
-    "id": "d4e5f6a7-b8c9-0123-4567-890abcdef012",
-    "title": "Cosmos",
-    "authors": ["Carl Sagan"],
-    "publisher": "Random House",
-    "publicationYear": 1980,
-    "isbn": "978-0345539434",
-    "pageCount": 384,
-    "language": "English",
-    "genreCategory": ["Non-Fiction", "Science", "Astronomy"]
-  },
-  {
-    "id": "e5f6a7b8-c9d0-1234-5678-90abcdef0123",
-    "title": "Dönüşüm",
-    "authors": ["Franz Kafka"],
-    "publisher": "Kurt Wolff Verlag",
-    "publicationYear": 1915,
-    "isbn": "978-0486290300",
-    "pageCount": 80,
-    "language": "German",
-    "genreCategory": ["Absurdist Fiction", "Existentialism", "Novella"]
+    "title": "title",
+    "authors": "authors",
+    "publisher": "publisher",
+    "publicationYear": "sadf",
+    "isbn10": "sadfsadf",
+    "isbn13": "isbn13",
+    "pageCount": "",
+    "language": "",
+    "genres": "",
+    "_id": "2463ab558dfa4833ae64ca7284e3fba2"
   }
 ]
