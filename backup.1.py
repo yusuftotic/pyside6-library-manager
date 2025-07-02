@@ -618,128 +618,26 @@ class MainWindow(QMainWindow):
 	def show_book_details_dialog(self, index:QModelIndex):
 
 		row = index.row()
+
+
 		selected_books_id = self.books_list[row][-1]
+
 		book_in_detail = self.db.find_by_id(selected_books_id)
 
 		dialog = QDialog(self)
+
 		dialog_x, dialog_y = self.get_available_coordinates()
-		dialog.setGeometry(dialog_x, dialog_y, 500, 400)
-		dialog.setFixedWidth(500)
+
+		dialog.setGeometry(dialog_x, dialog_y, 400, 350)
+		dialog.setFixedWidth(400)
+
 		dialog.setModal(True)
-		dialog.setWindowTitle(f"{book_in_detail['title']} - Details")
 
-		# Main layout
-		layout = QVBoxLayout()
-		layout.setSpacing(5)
-		dialog.setLayout(layout)
-
-		# Title section
-		title_label = QLabel(book_in_detail['title'])
-		title_label.setStyleSheet("font-size: 24px; font-weight: bold; margin-bottom: 20px;")
-		title_label.setWordWrap(True)
-		layout.addWidget(title_label)
-
-		# Author section
-		if book_in_detail.get('authors'):
-			author_label = QLabel(f"<b>Author:</b> {book_in_detail['authors']}")
-			author_label.setStyleSheet("font-size: 14px; margin: 5px 0;")
-			author_label.setWordWrap(True)
-			layout.addWidget(author_label)
-
-		# Publisher section
-		if book_in_detail.get('publisher'):
-			publisher_label = QLabel(f"<b>Publisher:</b> {book_in_detail['publisher']}")
-			publisher_label.setStyleSheet("font-size: 14px; margin: 5px 0;")
-			publisher_label.setWordWrap(True)
-			layout.addWidget(publisher_label)
-
-		# Publication date section
-		if book_in_detail.get('publicationDate'):
-			pub_date_label = QLabel(f"<b>Publication Date:</b> {book_in_detail['publicationDate']}")
-			pub_date_label.setStyleSheet("font-size: 14px; margin: 5px 0;")
-			layout.addWidget(pub_date_label)
-
-		# ISBN section
-		isbn_layout = QHBoxLayout()
-		if book_in_detail.get('isbn10'):
-			isbn10_label = QLabel(f"<b>ISBN-10:</b> {book_in_detail['isbn10']}")
-			isbn10_label.setStyleSheet("font-size: 14px; margin: 5px 0;")
-			isbn_layout.addWidget(isbn10_label)
-		
-		if book_in_detail.get('isbn13'):
-			isbn13_label = QLabel(f"<b>ISBN-13:</b> {book_in_detail['isbn13']}")
-			isbn13_label.setStyleSheet("font-size: 14px; margin: 5px 0;")
-			isbn_layout.addWidget(isbn13_label)
-		
-		if isbn_layout.count() > 0:
-			layout.addLayout(isbn_layout)
-
-		# Page count section
-		if book_in_detail.get('pageCount'):
-			page_count_label = QLabel(f"<b>Pages:</b> {book_in_detail['pageCount']}")
-			page_count_label.setStyleSheet("font-size: 14px; margin: 5px 0;")
-			layout.addWidget(page_count_label)
-
-		# Language section
-		if book_in_detail.get('language'):
-			language_label = QLabel(f"<b>Language:</b> {book_in_detail['language']}")
-			language_label.setStyleSheet("font-size: 14px; margin: 5px 0;")
-			layout.addWidget(language_label)
-
-		# Genres section
-		if book_in_detail.get('genres'):
-			genres_label = QLabel(f"<b>Genres:</b> {book_in_detail['genres']}")
-			genres_label.setStyleSheet("font-size: 14px; margin: 5px 0;")
-			genres_label.setWordWrap(True)
-			layout.addWidget(genres_label)
-
-		# Description section
-		if book_in_detail.get('description'):
-			description_label = QLabel("<b>Description:</b>")
-			description_label.setStyleSheet("font-size: 14px; font-weight: bold; margin: 10px 0 5px 0;")
-			layout.addWidget(description_label)
-			
-			description_text = QTextEdit()
-			description_text.setPlainText(book_in_detail['description'])
-			description_text.setReadOnly(True)
-			description_text.setStyleSheet("""
-				QTextEdit {
-					border: 1px solid transparent;
-					border-radius: 5px;
-					font-size: 13px;
-					line-height: 1.4;
-				}
-			""")
-			description_text.setFixedHeight(150)
-			layout.addWidget(description_text)
-
-		# Add some spacing
-		layout.addStretch()
-
-		# Buttons section
-		button_layout = QHBoxLayout()
-		button_layout.setSpacing(10)
-
-		edit_button = QPushButton("Edit Book")
-		edit_button.setStyleSheet("padding: 8px 0;")
-		button_layout.addWidget(edit_button)
-
-		close_button = QPushButton("Close")
-		close_button.setStyleSheet("padding: 8px 0;")
-		button_layout.addWidget(close_button)
-
-		layout.addLayout(button_layout)
-
-		# Connect signals
-		edit_button.clicked.connect(lambda: self.edit_book_from_details(book_in_detail, dialog))
-		close_button.clicked.connect(dialog.close)
+		dialog.setWindowTitle(f"{book_in_detail["title"]} Details")
 
 		dialog.show()
 
-	def edit_book_from_details(self, book_data, dialog=None):
-		if dialog:
-			dialog.close()
-		self.show_form_dialog(existing_book=book_data)
+
 
 	def get_available_coordinates(self):
 
