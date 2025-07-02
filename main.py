@@ -27,6 +27,7 @@ from PySide6.QtCore import (
 	QAbstractTableModel,
 	QModelIndex,
 	QObject,
+	QTimer,
 	QRunnable,
 	QThreadPool,
 	Signal,
@@ -206,7 +207,36 @@ class MainWindow(QMainWindow):
 
 		self.table_view.doubleClicked.connect(self.show_book_details_dialog)
 
+		self.lineedit_search.textChanged.connect(self.search_book)
+
 		
+	def handle_search_text_changed(self, search_text):
+
+		QTimer.singleShot(300, lambda: self.search_book(search_text=search_text))
+
+	def search_book(self, search_text):
+
+		if len(search_text) == 0:
+			self._update_model()
+			return
+
+		books = self.db.find()
+
+		search_text = search_text.lower()
+
+		def linear_search(search_text):
+			found_books = []
+			for book in books:
+				for key, value in book.items():
+
+					if search_text and search_text in value.lower() and key != "_id":
+						found_books.append(book)
+						break
+			return found_books
+
+		self._update_model(linear_search(search_text))
+
+	
 		
 	def add_book(self):
 		self.show_form_dialog()
@@ -244,7 +274,7 @@ class MainWindow(QMainWindow):
 				QMessageBox.No
 			)
 
-			if reply:
+			if reply == QMessageBox.Yes:
 				_id = selected_book[-1]
 
 				self.db.find_by_id_and_delete(_id)
@@ -288,11 +318,12 @@ class MainWindow(QMainWindow):
 
 		dialog.setModal(True)
 
-		dialog.setFixedWidth(400)
-		dialog.setGeometry(dialog_x, dialog_y, 400, 250)
+		dialog.setFixedWidth(600)
+		dialog.resize(600, 600)
+		# dialog.setGeometry(dialog_x, dialog_y, 600, 500)
 
 		layout = QVBoxLayout()
-		layout.setSpacing(40)
+		layout.setSpacing(15)
 
 		#///////////////////////////////////////////////////
 		# SETUP DIALOG UI
@@ -320,7 +351,7 @@ class MainWindow(QMainWindow):
 		layout_add_title = QHBoxLayout()
 		label_add_title = QLabel("Title*")
 		label_add_title.setStyleSheet("font-size: 12px;")
-		label_add_title.setFixedWidth(90)
+		label_add_title.setFixedWidth(120)
 		layout_add_title.addWidget(label_add_title)
 		
 		lineedit_add_title = QLineEdit()
@@ -333,7 +364,7 @@ class MainWindow(QMainWindow):
 		layout_add_authors = QHBoxLayout()
 		label_add_authors = QLabel("Authors*")
 		label_add_authors.setStyleSheet("font-size: 12px;")
-		label_add_authors.setFixedWidth(90)
+		label_add_authors.setFixedWidth(120)
 		layout_add_authors.addWidget(label_add_authors)
 
 		lineedit_add_authors = QLineEdit()
@@ -346,7 +377,7 @@ class MainWindow(QMainWindow):
 		layout_add_publisher = QHBoxLayout()
 		label_add_publisher = QLabel("Publisher")
 		label_add_publisher.setStyleSheet("font-size: 12px;")
-		label_add_publisher.setFixedWidth(90)
+		label_add_publisher.setFixedWidth(120)
 		layout_add_publisher.addWidget(label_add_publisher)
 
 		lineedit_add_publisher = QLineEdit()
@@ -359,7 +390,7 @@ class MainWindow(QMainWindow):
 		layout_add_publication_date = QHBoxLayout()
 		label_add_publication_date = QLabel("Publication Date")
 		label_add_publication_date.setStyleSheet("font-size: 12px;")
-		label_add_publication_date.setFixedWidth(90)
+		label_add_publication_date.setFixedWidth(120)
 		layout_add_publication_date.addWidget(label_add_publication_date)
 
 		lineedit_add_publication_date = QLineEdit()
@@ -372,7 +403,7 @@ class MainWindow(QMainWindow):
 		layout_add_isbn10 = QHBoxLayout()
 		label_add_isbn10 = QLabel("ISBN-10")
 		label_add_isbn10.setStyleSheet("font-size: 12px;")
-		label_add_isbn10.setFixedWidth(90)
+		label_add_isbn10.setFixedWidth(120)
 		layout_add_isbn10.addWidget(label_add_isbn10)
 
 		lineedit_add_isbn10 = QLineEdit()
@@ -385,7 +416,7 @@ class MainWindow(QMainWindow):
 		layout_add_isbn13 = QHBoxLayout()
 		label_add_isbn13 = QLabel("ISBN-13*")
 		label_add_isbn13.setStyleSheet("font-size: 12px;")
-		label_add_isbn13.setFixedWidth(90)
+		label_add_isbn13.setFixedWidth(120)
 		layout_add_isbn13.addWidget(label_add_isbn13)
 
 		lineedit_add_isbn13 = QLineEdit()
@@ -398,7 +429,7 @@ class MainWindow(QMainWindow):
 		layout_add_page_count = QHBoxLayout()
 		label_add_page_count = QLabel("Page Count")
 		label_add_page_count.setStyleSheet("font-size: 12px;")
-		label_add_page_count.setFixedWidth(90)
+		label_add_page_count.setFixedWidth(120)
 		layout_add_page_count.addWidget(label_add_page_count)
 
 		lineedit_add_page_count = QLineEdit()
@@ -411,7 +442,7 @@ class MainWindow(QMainWindow):
 		layout_add_language = QHBoxLayout()
 		label_add_language = QLabel("Language")
 		label_add_language.setStyleSheet("font-size: 12px;")
-		label_add_language.setFixedWidth(90)
+		label_add_language.setFixedWidth(120)
 		layout_add_language.addWidget(label_add_language)
 
 		lineedit_add_language = QLineEdit()
@@ -424,7 +455,7 @@ class MainWindow(QMainWindow):
 		layout_add_genres = QHBoxLayout()
 		label_add_genres = QLabel("Genres")
 		label_add_genres.setStyleSheet("font-size: 12px;")
-		label_add_genres.setFixedWidth(90)
+		label_add_genres.setFixedWidth(120)
 		layout_add_genres.addWidget(label_add_genres)
 
 		lineedit_add_genres = QLineEdit()
@@ -437,7 +468,7 @@ class MainWindow(QMainWindow):
 		layout_add_description = QHBoxLayout()
 		label_add_description = QLabel("Description")
 		label_add_description.setStyleSheet("font-size: 12px;")
-		label_add_description.setFixedWidth(90)
+		label_add_description.setFixedWidth(120)
 		label_add_description.setAlignment(Qt.AlignmentFlag.AlignTop)
 		layout_add_description.addWidget(label_add_description)
 
@@ -452,7 +483,7 @@ class MainWindow(QMainWindow):
 		
 
 		layout_add_form = QVBoxLayout()
-		layout_add_form.setSpacing(15)
+		layout_add_form.setSpacing(10)
 		layout.addLayout(layout_add_form)
 
 
@@ -776,9 +807,9 @@ class MainWindow(QMainWindow):
 
 
 
-	def _update_model(self):
+	def _update_model(self, books:dict = None):
 
-		self.books = self.db.find()
+		self.books = books if books != None else self.db.find()
 
 		self.books_list = self.extract_values_from_docs(self.books)
 
@@ -789,7 +820,7 @@ class MainWindow(QMainWindow):
 
 
 	def setup_ui(self):
-		self.resize(600, 500)
+		self.resize(800, 600)
 		self.setWindowTitle("Holocron: Library Manager")
 
 		central_widget = QWidget()
@@ -799,6 +830,15 @@ class MainWindow(QMainWindow):
 		central_widget.setLayout(layout)
 		
 		# ///////////////////////////////////
+		layout_search = QHBoxLayout()
+		layout.addLayout(layout_search)
+
+		self.lineedit_search = QLineEdit()
+		self.lineedit_search.setPlaceholderText("Search a book...")
+		self.lineedit_search.setFixedSize(400, 30)
+		layout_search.addWidget(self.lineedit_search)
+
+
 		layout_table = QVBoxLayout()
 		layout.addLayout(layout_table)
 

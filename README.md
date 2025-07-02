@@ -7,5 +7,6 @@
 - [x] Implement book addition, editing and deletion operations using this class
 - [x] Write book add and edit dialogs
 - [x] Fetch book data from Amazon using ISBN
-- [ ] Implement scraping operations with QRunnable & QThreadPool (ScraperWorker)
+- [x] Implement scraping operations with QRunnable & QThreadPool (ScraperWorker)
+- [x] Add search book functionality
 - [ ] Add 'pyisbn' module to convert ISBN
