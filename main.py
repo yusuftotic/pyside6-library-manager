@@ -1,5 +1,10 @@
 import sys
 import os
+import json
+import uuid
+import copy
+import requests
+from bs4 import BeautifulSoup
 from PySide6.QtWidgets import (
 	QApplication,
 	QMainWindow,
@@ -20,10 +25,124 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import (
 	Qt,
 	QAbstractTableModel,
+	QModelIndex,
+	QObject,
+	QRunnable,
+	QThreadPool,
 	Signal,
-	Slot
+	Slot,
 )
-from utils.database.basicdb import BasicDB
+
+class ScraperWorkerSignals(QObject):
+	finished = Signal()
+	error = Signal(str)
+	result = Signal(dict)
+
+class ScraperWorker(QRunnable):
+	def __init__(self, _isbn:str="1692492780"):
+		super().__init__()
+		
+		self._isbn = _isbn
+		self.headers = {
+			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+			'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+			'Accept-Language': 'en-US,en;q=0.9,tr;q=0.8',
+			'Connection': 'keep-alive',
+			'Upgrade-Insecure-Requests': '1',
+			# 'Referer': 'https://www.google.com/'
+		}
+
+		self.signals = (
+			ScraperWorkerSignals()
+		)
+
+	@Slot()
+	def run(self):
+		print("THREAD IS RUNNING...")
+
+		_isbn10 = ""
+
+		if "-" in self._isbn:
+			self._isbn = self._isbn.replace("-", "")
+		
+		if len(self._isbn) == 13:
+			_isbn10 = self._isbn[3::]
+		
+		elif len(self._isbn) == 10:
+			_isbn10 = self._isbn
+
+		else:
+			print("[ERROR] - You should enter a valid ISBN.")
+			return
+		
+		try:
+			book_amazon_url = f"https://www.amazon.com/dp/{_isbn10}"
+
+			page = requests.get(url=book_amazon_url, headers=self.headers)
+
+			soup = BeautifulSoup(page.text, "html.parser")
+
+			title = ""
+			author = ""
+			publisher = ""
+			publication_date = ""
+			isbn10 = ""
+			isbn13 = ""
+			page_count = ""
+			language = ""
+			description = ""
+
+			if soup.find(id="productTitle"):
+				title = soup.find(id="productTitle").text.strip()
+
+			# +++++++++ Translator
+			if soup.find(class_="author").a:
+				author = soup.find(class_="author").a.text # Author
+
+
+			for i in soup.find(id="detailBullets_feature_div").find("ul").find_all(class_="a-list-item"):
+				
+				if ("Publisher" in i.find_all("span")[0].text):
+					publisher = i.find_all("span")[1].text
+				
+				elif ("Publication date" in i.find_all("span")[0].text):
+					publication_date = i.find_all("span")[1].text
+
+				elif ("ISBN-10" in i.find_all("span")[0].text):
+					isbn10 = i.find_all("span")[1].text
+				
+				elif ("ISBN-13" in i.find_all("span")[0].text):
+					isbn13 = i.find_all("span")[1].text
+				
+				elif ("Print length" in i.find_all("span")[0].text):
+					page_count = i.find_all("span")[1].text
+				
+				elif ("Language" in i.find_all("span")[0].text):
+					language = i.find_all("span")[1].text
+
+			isDescription = True if soup.find(id="bookDescription_feature_div") else False
+			description = soup.find(id="bookDescription_feature_div").text.strip().replace(" Read more", "") if isDescription else "" # Description
+			
+			# price = soup.find(class_="slot-price").text.strip().replace("from ", "") # Price
+
+			# print(title, author, isbn10, isbn13, language, description, price)
+
+		except Exception as err:
+			self.signals.error.emit(err)
+
+		else:
+			self.signals.finished.emit()
+			self.signals.result.emit({
+				"title": title,
+				"author": author,
+				"publisher": publisher,
+				"publication_date": publication_date,
+				"isbn10": isbn10,
+				"isbn13": isbn13,
+				"page_count": page_count,
+				"language": language,
+				"description": description,
+			})
 
 class BookModel(QAbstractTableModel):
 	def __init__(self, books=None):
@@ -56,7 +175,7 @@ class BookModel(QAbstractTableModel):
 			elif orientation == Qt.Orientation.Vertical:
 				return str(section+1)
 
-class Holocron(QMainWindow):
+class MainWindow(QMainWindow):
 	
 	def __init__(self):
 		super().__init__()
@@ -64,11 +183,16 @@ class Holocron(QMainWindow):
 		self.db = BasicDB(collection_name="books", root_dir=os.path.abspath(__file__))
 		self.books = self.db.find()
 		self.books_list = self.extract_values_from_docs(self.books)
+		self.scraped_book = None
 
 		self.setup_ui()
 
 		self.model = BookModel(self.books_list)
 		self.table_view.setModel(self.model)
+
+		## QThreadPool
+		self.threadpool = QThreadPool()
+		print(f"Multithreading with maximum {self.threadpool.maxThreadCount()} threads")
 
 
 		# ////////////////////////
@@ -80,10 +204,14 @@ class Holocron(QMainWindow):
 		self.table_view.pressed.connect(lambda: self.button_edit.setDisabled(False))
 		self.table_view.pressed.connect(lambda: self.button_delete.setDisabled(False))
 
+		self.table_view.doubleClicked.connect(self.show_book_details_dialog)
+
 		
 		
 	def add_book(self):
-		self.show_dialog()
+		self.show_form_dialog()
+
+
 
 	def edit_book(self):
 
@@ -94,7 +222,7 @@ class Holocron(QMainWindow):
 
 			selected_book = self.books[row]
 
-			self.show_dialog(existing_book=selected_book)
+			self.show_form_dialog(existing_book=selected_book)
 
 
 
@@ -107,7 +235,6 @@ class Holocron(QMainWindow):
 			row = indexes[0].row()
 
 			selected_book = self.books_list[row]
-			
 
 			reply = QMessageBox.question(
 				self,
@@ -125,11 +252,31 @@ class Holocron(QMainWindow):
 				# print(f"[INFO] - '{selected_book[0]}' was deleted.")
 				self._update_model()
 
-					
+
+	# ////////////////////////////////////////////////////////////
+	# SCRAPER WORKER ////////////////////////////////////////////
+	def start_scraper_worker(self, _isbn:str, callback=None):
+		## Defining ScraperWorker for scraping
+		scraper_worker = ScraperWorker(_isbn)
+		if callback:
+			scraper_worker.signals.result.connect(callback)
+		scraper_worker.signals.result.connect(self.scaper_worker_output)
+		scraper_worker.signals.error.connect(self.scraper_worker_error)
+		scraper_worker.signals.finished.connect(self.scaper_worker_complete)
+		self.threadpool.start(scraper_worker)
+
+	def scaper_worker_output(self, s):
+		print("RESULT", s)
+
+	def scaper_worker_complete(self):
+		print("THREAD COMPLETE")
+
+	def scraper_worker_error(self, t):
+		print("ERROR: ", t)
+	# ////////////////////////////////////////////////////////////
 
 
-
-	def show_dialog(self, existing_book:list=None):
+	def show_form_dialog(self, existing_book:list=None):
 
 		self.keep_dialog_open_state = False
 
@@ -149,6 +296,25 @@ class Holocron(QMainWindow):
 
 		#///////////////////////////////////////////////////
 		# SETUP DIALOG UI
+
+		## Scraping
+		layout_scraping_input = QHBoxLayout()
+		layout_scraping_input.setSpacing(10)
+		layout_scraping_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+		lineedit_scraping_input = QLineEdit()
+		lineedit_scraping_input.setPlaceholderText("Enter ISBN-10 or ISBN-13...")
+		# lineedit_scraping_input.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+		lineedit_scraping_input.clearFocus()
+		layout_scraping_input.addWidget(lineedit_scraping_input)
+
+		button_scraping_input = QPushButton("Scrape Book")
+		button_scraping_input.setStyleSheet("padding: 5px 10px;")
+		button_scraping_input.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+		layout_scraping_input.addWidget(button_scraping_input)
+		if not existing_book:
+			layout.addLayout(layout_scraping_input)
+
 
 		## Add Form: Title
 		layout_add_title = QHBoxLayout()
@@ -189,19 +355,19 @@ class Holocron(QMainWindow):
 		lineedit_add_publisher.setPlaceholderText("e.g. Secker & Warburg")
 		lineedit_add_publisher.setStyleSheet("padding: 2px 0; font-size: 12px;")
 		layout_add_publisher.addWidget(lineedit_add_publisher)
-		## Add Form: Publication Year
-		layout_add_publication_year = QHBoxLayout()
-		label_add_publication_year = QLabel("Publication Year")
-		label_add_publication_year.setStyleSheet("font-size: 12px;")
-		label_add_publication_year.setFixedWidth(90)
-		layout_add_publication_year.addWidget(label_add_publication_year)
+		## Add Form: Publication Date
+		layout_add_publication_date = QHBoxLayout()
+		label_add_publication_date = QLabel("Publication Date")
+		label_add_publication_date.setStyleSheet("font-size: 12px;")
+		label_add_publication_date.setFixedWidth(90)
+		layout_add_publication_date.addWidget(label_add_publication_date)
 
-		lineedit_add_publication_year = QLineEdit()
+		lineedit_add_publication_date = QLineEdit()
 		if existing_book:
-			lineedit_add_publication_year.setText(existing_book["publicationYear"])
-		lineedit_add_publication_year.setPlaceholderText("e.g. 1949")
-		lineedit_add_publication_year.setStyleSheet("padding: 2px 0; font-size: 12px;")
-		layout_add_publication_year.addWidget(lineedit_add_publication_year)
+			lineedit_add_publication_date.setText(existing_book["publicationDate"])
+		lineedit_add_publication_date.setPlaceholderText("e.g. 1949")
+		lineedit_add_publication_date.setStyleSheet("padding: 2px 0; font-size: 12px;")
+		layout_add_publication_date.addWidget(lineedit_add_publication_date)
 		## Add Form: ISBN-10
 		layout_add_isbn10 = QHBoxLayout()
 		label_add_isbn10 = QLabel("ISBN-10")
@@ -293,7 +459,7 @@ class Holocron(QMainWindow):
 		layout_add_form.addLayout(layout_add_title)
 		layout_add_form.addLayout(layout_add_authors)
 		layout_add_form.addLayout(layout_add_publisher)
-		layout_add_form.addLayout(layout_add_publication_year)
+		layout_add_form.addLayout(layout_add_publication_date)
 		layout_add_form.addLayout(layout_add_isbn10)
 		layout_add_form.addLayout(layout_add_isbn13)
 		layout_add_form.addLayout(layout_add_page_count)
@@ -341,7 +507,7 @@ class Holocron(QMainWindow):
 			title = lineedit_add_title.text().strip()
 			authors = lineedit_add_authors.text().strip()
 			publisher = lineedit_add_publisher.text().strip()
-			publication_year = lineedit_add_publication_year.text().strip()
+			publication_date = lineedit_add_publication_date.text().strip()
 			isbn10 = lineedit_add_isbn10.text().strip()
 			isbn13 = lineedit_add_isbn13.text().strip()
 			page_count = lineedit_add_page_count.text().strip()
@@ -355,7 +521,7 @@ class Holocron(QMainWindow):
 					"title": title,
 					"authors": authors,
 					"publisher": publisher,
-					"publicationYear": publication_year,
+					"publicationDate": publication_date,
 					"isbn10": isbn10,
 					"isbn13": isbn13,
 					"pageCount": page_count,
@@ -383,16 +549,19 @@ class Holocron(QMainWindow):
 						if not self.keep_dialog_open_state:
 							dialog.close()
 
+				lineedit_scraping_input.clear()
+
 				title = lineedit_add_title.clear()
 				authors = lineedit_add_authors.clear()
 				publisher = lineedit_add_publisher.clear()
-				publication_year = lineedit_add_publication_year.clear()
+				publication_date = lineedit_add_publication_date.clear()
 				isbn10 = lineedit_add_isbn10.clear()
 				isbn13 = lineedit_add_isbn13.clear()
 				page_count = lineedit_add_page_count.clear()
 				language = lineedit_add_language.clear()
 				genres = lineedit_add_genres.clear()
 				description = textedit_add_description.clear()
+
 
 			else:
 				QMessageBox.warning(
@@ -403,6 +572,7 @@ class Holocron(QMainWindow):
 					QMessageBox.Ok
 				)
 
+
 		def update_keep_dialog_open_state(check_state):
 
 			if check_state == 2: # Qt.CheckState.Checked
@@ -412,8 +582,28 @@ class Holocron(QMainWindow):
 				self.keep_dialog_open_state = False
 		
 
+		def fill_scraped_book(scraped_book):
+
+			if scraped_book:
+				
+				lineedit_add_title.setText(scraped_book["title"])
+				lineedit_add_authors.setText(scraped_book["author"])
+				lineedit_add_publisher.setText(scraped_book["publisher"])
+				lineedit_add_publication_date.setText(scraped_book["publication_date"])
+				lineedit_add_isbn10.setText(scraped_book["isbn10"])
+				lineedit_add_isbn13.setText(scraped_book["isbn13"])
+				lineedit_add_page_count.setText(scraped_book["page_count"])
+				lineedit_add_language.setText(scraped_book["language"])
+				# lineedit_add_genres.setText()
+				textedit_add_description.setText(scraped_book["description"])
+
+
 		#/////////////////////////////////////////////////////////
 		## Signals
+		button_scraping_input.clicked.connect(
+			lambda: self.start_scraper_worker(lineedit_scraping_input.text().strip(), fill_scraped_book)
+		)
+
 		button_form_save_book.clicked.connect(save_book)
 		button_form_cancel.clicked.connect(dialog.close)
 
@@ -423,7 +613,32 @@ class Holocron(QMainWindow):
 
 		dialog.show()
 
-		
+
+
+	def show_book_details_dialog(self, index:QModelIndex):
+
+		row = index.row()
+
+
+		selected_books_id = self.books_list[row][-1]
+
+		book_in_detail = self.db.find_by_id(selected_books_id)
+
+		dialog = QDialog(self)
+
+		dialog_x, dialog_y = self.get_available_coordinates()
+
+		dialog.setGeometry(dialog_x, dialog_y, 400, 350)
+		dialog.setFixedWidth(400)
+
+		dialog.setModal(True)
+
+		dialog.setWindowTitle(f"{book_in_detail["title"]} Details")
+
+		dialog.show()
+
+
+
 	def get_available_coordinates(self):
 
 		geo = self.geometry()
@@ -434,7 +649,7 @@ class Holocron(QMainWindow):
 
 		dialog_width = 400
 		dialog_x = None
-		dialog_y = windowsize["y"] + 50
+		dialog_y = windowsize["y"] + 0
 
 		distance_between_windows = - 200
 
@@ -445,8 +660,9 @@ class Holocron(QMainWindow):
 			dialog_x = windowsize["x"] + windowsize["width"] + distance_between_windows
 
 		return (dialog_x, dialog_y)
-	
-		
+
+
+
 	def extract_values_from_docs(self, documents):
 
 		result = []
@@ -455,9 +671,9 @@ class Holocron(QMainWindow):
 			result.append([doc["title"], doc["authors"], doc["publisher"], doc["isbn13"], doc["_id"]])
 
 		return result
-	
-	
-	
+
+
+
 	def _update_model(self):
 
 		self.books = self.db.find()
@@ -467,8 +683,8 @@ class Holocron(QMainWindow):
 		self.model.books = self.books_list
 
 		self.model.layoutChanged.emit()
-	
-		
+
+
 
 	def setup_ui(self):
 		self.resize(600, 500)
@@ -511,13 +727,164 @@ class Holocron(QMainWindow):
 		self.button_delete.setDisabled(True)
 		self.button_delete.setStyleSheet("padding: 5px 0;")
 		layout_buttons_container.addWidget(self.button_delete)
-		
-		
+
+
+
+
+class BasicDB:
+
+    def __init__(self, collection_name: str, root_dir : str):
+        self.collection_name = collection_name
+
+        self.base_dir = os.path.join(os.path.dirname(root_dir), "data")
+        self.file_path = os.path.join(self.base_dir, f"{self.collection_name}.json")
+
+        self._ensure_data_directory_exists()
+        self._ensure_collection_file_exists()
+        
+
+
+    def _ensure_data_directory_exists(self):
+        if not os.path.exists(self.base_dir):
+            os.makedirs(self.base_dir)
+            print(f"[INFO] - '{self.base_dir}' directory was created.")
+            
+
+    def _read_all_documents(self) -> list:
+        try:
+            with open(self.file_path, mode="r", encoding="utf-8") as file:
+                return json.load(file)
+            
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []
+        
+    def _write_all_documents(self, documents: list):
+        try:
+            with open(self.file_path, mode="w", encoding="utf-8") as file:
+                json.dump(documents, file, ensure_ascii=False, indent=None)
+        
+        except IOError as err:
+            print(f"[ERROR] - {self.collection_name}.json dosyasına yazma hatası: {err}")
+            raise
+
+
+    def _ensure_collection_file_exists(self):
+        if not os.path.exists(self.file_path):
+            self._write_all_documents([])
+            print(f"[INFO] - '{self.collection_name}.json' file was created.")
+
+
+    # CREATE Opearations
+
+    def create(self, doc: dict) -> dict:
+        
+        if not isinstance(doc, dict):
+            raise ValueError("Documents must be a dictionary.")
+        
+        _id = uuid.uuid4().hex
+        
+        documents = self._read_all_documents()
+
+        new_doc = copy.deepcopy(doc)
+        new_doc["_id"] = _id
+
+        documents.append(new_doc)
+
+        self._write_all_documents(documents)
+        
+        print(f"[INFO] - Belge eklendi: {new_doc.get('title', new_doc.get('name', new_doc['_id']))}")
+        
+        return new_doc
+        
+    
+    # READ Operations
+
+    def find(self, query: dict=None) -> list:
+        
+        documents = self._read_all_documents()
+
+        if not query:
+            return documents
+
+        results = []
+        for doc in documents:
+            query_bools = []
+            for key, value in query.items():
+                if key in doc and doc[key] == value:
+                    query_bools.append(True)
+                else:
+                    query_bools.append(False)
+            if all(query_bools):
+                results.append(doc)
+
+        # results = [
+        #     doc for doc in documents
+        #     if all(key in doc and doc[key] == value for key, value in query.items())
+        # ]
+
+        if results:
+            return results
+
+        return None
+    
+    
+    def find_by_id(self, _id: str) -> dict | None:
+        
+        documents = self._read_all_documents()
+
+        # result = [
+        #     doc for doc in documents if doc and doc["_id"] == _id
+        # ]
+
+        result = None
+
+        for doc in documents:
+            if doc["_id"] == _id:
+                result = doc
+            
+        return result
+
+
+    # UPDATE Operations
+
+    def find_by_id_and_update(self, _id: str, update: dict) -> dict | None:
+
+        documents = self._read_all_documents()
+        
+        doc = self.find_by_id(_id)
+
+        if not doc:
+            return None
+
+        doc_index = documents.index(doc)
+
+        update["_id"] = _id
+
+        documents[doc_index] = update
+
+        self._write_all_documents(documents)
+
+        return update
+
+
+    # DELETE Operations
+
+    def find_by_id_and_delete(self, _id: str):
+        
+        documents = self._read_all_documents()
+        
+        doc = self.find_by_id(_id)
+
+        doc_index = documents.index(doc)
+
+        documents.pop(doc_index)
+
+        self._write_all_documents(documents)
 
 
 
 if __name__ == "__main__":
 	app = QApplication(sys.argv)
-	window = Holocron()
+	window = MainWindow()
 	window.show()
 	sys.exit(app.exec())
