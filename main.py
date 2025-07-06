@@ -5,6 +5,9 @@ import uuid
 import copy
 import requests
 from bs4 import BeautifulSoup
+from pyzbar.pyzbar import decode
+import cv2
+import isbnlib
 from PySide6.QtWidgets import (
 	QApplication,
 	QMainWindow,
@@ -28,11 +31,116 @@ from PySide6.QtCore import (
 	QModelIndex,
 	QObject,
 	QTimer,
+	QThread,
+	QMutex,
 	QRunnable,
 	QThreadPool,
 	Signal,
 	Slot,
 )
+from PySide6.QtGui import (
+	QImage,
+	QPixmap,
+)
+
+class CameraWorker(QThread):
+
+	frame = Signal(QImage)
+	isbn = Signal(str)
+	error = Signal(str)
+	finished = Signal()
+	number = Signal(int)
+	status = Signal(str)  # Status updates
+
+	def __init__(self):
+		super().__init__()
+		self.is_running = False
+		self.camera = None
+		self.is_camera_active = False
+
+	@Slot()
+	def run(self):
+		self.is_running = True
+		self.status.emit("Starting camera...")
+		
+		try:
+
+			self.camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+			
+			if not self.camera.isOpened():
+				self.error.emit("Camera could not be opened")
+				return
+			
+			self.is_camera_active = True
+			self.status.emit("Camera started successfully")
+			
+			fps = int(self.camera.get(5))
+			print(f"Frame Rate : {fps} frames per second")
+
+			while self.camera.isOpened():
+
+				if self.is_running == False:
+					return
+
+				ret, frame = self.camera.read()
+
+				if not ret:
+					self.error.emit("Failed to read frame")
+					break
+				
+				isbn_barcode = None
+				
+				decoded_barcodes = decode(frame)
+				for decoded_barcode in decoded_barcodes:
+					if decoded_barcode:
+						if decoded_barcode.type == "EAN13":
+							isbn_barcode = decoded_barcode
+
+				if isbn_barcode:
+					isbn_code = isbn_barcode.data.decode("utf-8")
+					self.isbn.emit(isbn_code)
+
+					(x, y, w, h) = isbn_barcode.rect
+					pt1_rect = (x, y)
+					pt2_rect = (x + w, y + h)
+
+					cv2.rectangle(
+						img=frame,
+						pt1=pt1_rect,
+						pt2=pt2_rect,
+						thickness=2,
+						color=(0, 0, 255),
+						lineType=cv2.LINE_8
+					)
+
+				h, w, ch = frame.shape
+				bytes_per_line = ch * w
+				q_img = QImage(frame.data, w, h, bytes_per_line, QImage.Format.Format_BGR888)
+				self.frame.emit(q_img)
+
+				CameraWorker.msleep(30)
+				
+		except Exception as e:
+			self.error.emit(f"Camera error: {str(e)}")
+		finally:
+			self.stop_camera()
+			self.status.emit("Camera stopped")
+			self.finished.emit()
+	
+	def stop_camera(self):
+		if self.camera and self.is_camera_active:
+			self.is_running = False
+			self.camera.release()
+			self.is_camera_active = False
+			print("Camera stopped")
+	
+	def start_camera(self):
+		if not self.is_running:
+			self.start()
+	
+	def is_camera_running(self):
+		return self.is_running and self.is_camera_active
+
 
 class ScraperWorkerSignals(QObject):
 	finished = Signal()
@@ -59,17 +167,15 @@ class ScraperWorker(QRunnable):
 
 	@Slot()
 	def run(self):
-		print("THREAD IS RUNNING...")
 
 		_isbn10 = ""
 
-		if "-" in self._isbn:
-			self._isbn = self._isbn.replace("-", "")
+		self._isbn = isbnlib.canonical(self._isbn)
 		
-		if len(self._isbn) == 13:
-			_isbn10 = self._isbn[3::]
-		
-		elif len(self._isbn) == 10:
+		if isbnlib.is_isbn13(self._isbn):
+			_isbn10 = isbnlib.to_isbn10(self._isbn)
+
+		elif isbnlib.is_isbn10(self._isbn):
 			_isbn10 = self._isbn
 
 		else:
@@ -187,9 +293,15 @@ class MainWindow(QMainWindow):
 		self.scraped_book = None
 
 		self.setup_ui()
+		self.label_camera = QLabel()
 
 		self.model = BookModel(self.books_list)
 		self.table_view.setModel(self.model)
+
+		# Camera worker initialization
+		self.camera_worker = CameraWorker()
+		self.camera_worker.status.connect(self.handle_camera_status)
+		self.camera_worker.error.connect(self.handle_camera_error)
 
 		## QThreadPool
 		self.threadpool = QThreadPool()
@@ -209,6 +321,22 @@ class MainWindow(QMainWindow):
 
 		self.lineedit_search.textChanged.connect(self.search_book)
 
+		QApplication.instance().aboutToQuit.connect(self.camera_worker.stop_camera)
+
+
+	def update_frame(self, q_img):
+		if self.label_camera:
+			self.label_camera.setPixmap(QPixmap.fromImage(q_img).scaled(
+				self.label_camera.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+			))
+	
+	def handle_camera_error(self, error_msg):
+		print(f"Camera error: {error_msg}")
+		# You can show a message box or update UI here
+	
+	def handle_camera_status(self, status_msg):
+		print(f"Camera status: {status_msg}")
+		# You can update UI status here
 		
 	def handle_search_text_changed(self, search_text):
 
@@ -312,6 +440,15 @@ class MainWindow(QMainWindow):
 
 		dialog = QDialog(self)
 
+		# Start camera if not already running
+		if not self.camera_worker.is_camera_running() and not existing_book:
+			self.camera_worker.frame.connect(self.update_frame)
+			self.camera_worker.isbn.connect(lambda isbn: self.lineedit_scraping_input.setText(isbn))
+			self.camera_worker.start_camera()
+
+		dialog.finished.connect(self.camera_worker.stop_camera)
+		dialog.destroyed.connect(self.camera_worker.stop_camera)
+
 		dialog_x , dialog_y = self.get_available_coordinates()
 
 		dialog.setWindowTitle("Holocron - Add Contact")
@@ -319,7 +456,7 @@ class MainWindow(QMainWindow):
 		dialog.setModal(True)
 
 		dialog.setFixedWidth(600)
-		dialog.resize(600, 600)
+		dialog.resize(600, 300)
 		# dialog.setGeometry(dialog_x, dialog_y, 600, 500)
 
 		layout = QVBoxLayout()
@@ -328,16 +465,19 @@ class MainWindow(QMainWindow):
 		#///////////////////////////////////////////////////
 		# SETUP DIALOG UI
 
+
 		## Scraping
 		layout_scraping_input = QHBoxLayout()
 		layout_scraping_input.setSpacing(10)
 		layout_scraping_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
+		self.label_camera.setFixedSize(200, 200)
+		layout_scraping_input.addWidget(self.label_camera)
 
-		lineedit_scraping_input = QLineEdit()
-		lineedit_scraping_input.setPlaceholderText("Enter ISBN-10 or ISBN-13...")
-		# lineedit_scraping_input.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-		lineedit_scraping_input.clearFocus()
-		layout_scraping_input.addWidget(lineedit_scraping_input)
+		self.lineedit_scraping_input = QLineEdit()
+		self.lineedit_scraping_input.setPlaceholderText("Enter ISBN-10 or ISBN-13...")
+		# self.lineedit_scraping_input.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+		self.lineedit_scraping_input.clearFocus()
+		layout_scraping_input.addWidget(self.lineedit_scraping_input)
 
 		button_scraping_input = QPushButton("Scrape Book")
 		button_scraping_input.setStyleSheet("padding: 5px 10px;")
@@ -580,7 +720,7 @@ class MainWindow(QMainWindow):
 						if not self.keep_dialog_open_state:
 							dialog.close()
 
-				lineedit_scraping_input.clear()
+				self.lineedit_scraping_input.clear()
 
 				title = lineedit_add_title.clear()
 				authors = lineedit_add_authors.clear()
@@ -632,7 +772,7 @@ class MainWindow(QMainWindow):
 		#/////////////////////////////////////////////////////////
 		## Signals
 		button_scraping_input.clicked.connect(
-			lambda: self.start_scraper_worker(lineedit_scraping_input.text().strip(), fill_scraped_book)
+			lambda: self.start_scraper_worker(self.lineedit_scraping_input.text().strip(), fill_scraped_book)
 		)
 
 		button_form_save_book.clicked.connect(save_book)
@@ -643,6 +783,7 @@ class MainWindow(QMainWindow):
 
 
 		dialog.show()
+
 
 
 

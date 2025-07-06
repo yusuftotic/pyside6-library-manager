@@ -1,0 +1,22 @@
+feat: Complete library manager with camera scanning and project setup
+
+- Add camera-based ISBN barcode scanning with OpenCV and pyzbar
+- Implement CameraWorker thread for real-time camera processing
+- Replace pyisbn with isbnlib for better ISBN validation
+- Add automatic ISBN input from camera scan to form fields
+- Implement thread-safe camera start/stop functionality
+- Add camera status monitoring and error handling
+- Create comprehensive project documentation (README.md)
+- Add requirements.txt with all dependencies
+- Add .gitignore for Python projects
+- Add MIT license
+- Fix ISBN variable naming issue in ScraperWorker
+- Improve thread management and error handling
+
+The application now supports:
+- Manual book entry and editing
+- ISBN barcode scanning via webcam
+- Automatic book data fetching from Amazon
+- Search functionality across all book fields
+- Local JSON-based data storage
+- Modern PySide6-based UI 
