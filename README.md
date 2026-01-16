@@ -15,7 +15,7 @@ A modern desktop application for managing your personal library with advanced fe
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/pyside6-library-manager.git
+git clone https://github.com/yusuftotic/pyside6-library-manager.git
 cd pyside6-library-manager
 ```
 
