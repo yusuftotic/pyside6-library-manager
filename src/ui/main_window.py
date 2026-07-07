@@ -3,9 +3,10 @@ import sys
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QTableView,
-    QAbstractItemView, QHeaderView, QMessageBox
+    QAbstractItemView, QHeaderView, QMessageBox, QApplication
 )
-from PySide6.QtCore import Qt, QTimer, QThreadPool, QModelIndex, Slot, QApplication
+from PySide6.QtCore import Qt, QTimer, QThreadPool, QModelIndex, Slot
+
 
 from src.database.basic_db import BasicDB
 from src.models.book_model import BookModel
