@@ -56,13 +56,22 @@ python main.py
 
 ```
 pyside6-library-manager/
-├── main.py              # Main application file
+├── main.py              # Application entry point
 ├── data/                # Data storage directory
 │   └── books.json       # Book database
+├── src/                 # Application source code
+│   ├── database/        # JSON database operations (BasicDB)
+│   ├── models/          # Qt model implementations (BookModel)
+│   ├── scraper/         # Amazon web scraping functions
+│   ├── workers/         # Background thread workers (Camera, Scraper)
+│   ├── ui/              # User interface components
+│   │   └── dialogs/     # Dialog windows (Form, Details)
+│   └── utils/           # Utility functions (coordinate helpers)
 ├── requirements.txt     # Python dependencies
-├── README.md           # This file
-└── .gitignore          # Git ignore rules
+├── README.md            # Project documentation
+└── .gitignore           # Git ignore rules
 ```
+
 
 ## Development Status
 
